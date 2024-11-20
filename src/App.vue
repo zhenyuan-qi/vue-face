@@ -11,7 +11,6 @@
     </div>
     <button @click="start">Start</button>
     <button @click="stop">Stop</button>
-    <button @click="pause">Pause</button>
   </div>
 </template>
 <script setup lang="ts">
@@ -22,6 +21,8 @@ const videoRef = ref()
 const canvasRef = ref()
 
 const canvas = ref()
+
+const timer = ref()
 
 onMounted(() => {
   loadModels()
@@ -56,12 +57,16 @@ const start = async () => {
     let stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     videoRef.value.srcObject = stream
     const options = new faceApi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.8 })
-    setInterval(async () => {
+    timer.value = setInterval(async () => {
       let detections = await faceApi.detectAllFaces(videoRef.value, options)
-      // canvasRef.value.getContext('2d')?.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-      // faceApi.draw.drawDetections(canvasRef.value, detections, { withScore: true })
+      canvasRef.value.getContext('2d')?.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+      faceApi.draw.drawDetections(canvasRef.value, detections, { withScore: true })
       const faceBoxes = detections.map((d) => d.box)
+      if (faceBoxes.length === 0) return
       drawImg(faceBoxes)
+      // let ageDetections = await faceApi.AgeGenderNet(videoRef.value)
+
+      // console.log(ageDetections)
     }, 100)
   } catch (error) {
     console.log(error)
@@ -72,7 +77,7 @@ const start = async () => {
 const drawImg = (faceBoxes) => {
   const { x, y, width, height } = faceBoxes[0]
   canvas.value.getContext('2d')?.clearRect(0, 0, canvas.value.width, canvas.value.height)
-  canvas.value.getContext('2d')?.drawImage(videoRef.value, x, y, width, height, 0, 0, canvas.value.width, canvas.value.height)
+  canvas.value.getContext('2d')?.drawImage(videoRef.value, x, y, width, height, 0, 0, width * 3, height * 3)
   // faceapi.draw.drawDetections(canvas.value, detections, { withScore: true })
   // const img = canvas.value.toDataURL('image/png')
   // const blob = base64ToBlob(img)
@@ -91,8 +96,14 @@ const base64ToBlob = (base64Data) => {
   }
   return new Blob([u8arr], { type: mime })
 }
-const stop = () => {}
-const pause = () => {}
+const stop = () => {
+  videoRef.value.srcObject.getTracks().forEach((track) => {
+    track.stop()
+  })
+  clearInterval(timer.value)
+  timer.value = null
+  // canvas.value.getContext('2d')?.clearRect(0, 0, canvas.value.width, canvas.value.height)
+}
 </script>
 <style scoped lang="less">
 .flex {
